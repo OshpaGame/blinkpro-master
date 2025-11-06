@@ -1,10 +1,11 @@
 @echo off
-title 🚀 BlinkPro Master - Auto Sync to Render
+setlocal EnableDelayedExpansion
+title 🚀 BlinkPro Master - Auto Sync + Backup to Render
 color 0B
 chcp 65001 >nul
 
 echo ============================================
-echo    🚀 BlinkPro Master - Auto Sync to Render
+echo     🚀 BlinkPro Master - Auto Sync + Backup
 echo ============================================
 echo.
 
@@ -22,39 +23,65 @@ if errorlevel 1 (
 echo ✅ Conexión establecida correctamente.
 echo.
 
-REM === Cancelar rebase previo si existe ===
-if exist ".git\rebase-merge" (
-    echo ⚠️ Se detectó un rebase pendiente. Abortando...
-    git rebase --abort >nul 2>&1
-    rmdir /s /q ".git\rebase-merge" >nul 2>&1
-    echo ✅ Rebase cancelado y limpiado.
-    echo.
+REM === Crear carpeta de backups ===
+set "BACKUP_DIR=%~dp0backups"
+if not exist "%BACKUP_DIR%" mkdir "%BACKUP_DIR%"
+
+REM === Generar fecha/hora segura ===
+for /f "delims=" %%A in ('powershell -NoProfile -Command "Get-Date -Format yyyy-MM-dd_HH-mm-ss"') do (
+    set "DATESTR=%%A"
+)
+if "!DATESTR!"=="" (
+    echo ❌ Error al obtener la fecha desde PowerShell.
+    pause
+    exit /b
 )
 
-REM === Limpiar locks que bloquean git ===
-if exist ".git\index.lock" (
-    del /f /q ".git\index.lock"
-    echo 🧹 Eliminado index.lock bloqueado.
-)
+set "BACKUP_FILE=%BACKUP_DIR%\blinkpro_backup_!DATESTR!.zip"
+echo 💾 Creando respaldo de seguridad...
+powershell -NoProfile -Command ^
+  "Compress-Archive -Path * -DestinationPath '%BACKUP_FILE%' -Force -CompressionLevel Optimal" >nul 2>&1
 
-REM === Guardar cambios locales ===
-echo 💾 Guardando cambios locales...
-git add . >nul 2>&1
-git commit -m "Actualización automática del servidor BlinkPro Master" >nul 2>&1
-if errorlevel 1 (
-    echo ⚙️ Sin cambios locales para confirmar.
+if exist "%BACKUP_FILE%" (
+    echo ✅ Respaldo creado: "%BACKUP_FILE%"
 ) else (
-    echo ✅ Cambios guardados correctamente.
+    echo ⚠️ No se pudo crear el respaldo.
 )
 echo.
 
-REM === Actualizar desde GitHub ===
-echo 📥 Descargando y fusionando cambios desde GitHub...
+REM === Limpiar bloqueos previos ===
+if exist ".git\index.lock" (
+    del /f /q ".git\index.lock"
+    echo 🧹 Eliminado archivo de bloqueo index.lock.
+)
+if exist ".git\rebase-merge" (
+    git rebase --abort >nul 2>&1
+    rmdir /s /q ".git\rebase-merge" >nul 2>&1
+    echo ⚠️ Rebase pendiente cancelado.
+)
+echo.
+
+REM === Preparar commit ===
+echo 🔄 Preparando cambios para commit...
+git add -A >nul 2>&1
+git restore --staged node_modules >nul 2>&1
+echo ✅ Archivos listos para commit.
+
+git commit -m "Actualización automática completa del servidor BlinkPro Master" >nul 2>&1
+if errorlevel 1 (
+    echo ⚙️ No hay cambios nuevos para guardar.
+) else (
+    echo ✅ Cambios confirmados correctamente.
+)
+echo.
+
+REM === Rebase y sincronización ===
+echo 📥 Actualizando desde GitHub...
 git fetch origin main >nul 2>&1
 git pull --rebase origin main
 if errorlevel 1 (
-    echo ⚠️ Se detectaron conflictos o errores de fusión.
-    echo Abriendo proyecto en Visual Studio Code para revisión manual...
+    echo ⚠️ Conflicto detectado o error de rebase.
+    echo Abriendo Visual Studio Code...
     code .
     pause
     exit /b
@@ -62,11 +89,11 @@ if errorlevel 1 (
 echo ✅ Rebase limpio completado.
 echo.
 
-REM === Subir cambios a GitHub ===
+REM === Subir cambios ===
 echo 🚀 Subiendo commits al repositorio remoto...
 git push -f origin main
 if errorlevel 1 (
-    echo ❌ Error al subir cambios. Verifica tus credenciales o conexión.
+    echo ❌ Error al subir los cambios.
     pause
     exit /b
 )
@@ -76,15 +103,13 @@ echo.
 REM === Confirmación final ===
 echo ============================================
 echo 🎉 ¡Actualización completada con éxito!
-echo 🌐 Render detectará el nuevo commit y redeployará automáticamente.
+echo 🌐 Render redeployará automáticamente.
 echo ============================================
 echo.
 echo 🔗 Panel web: https://blinkpro-master.onrender.com
-echo 📦 Repositorio: https://github.com/OshpaGame/blinkpro-master
+echo 📦 Repo: https://github.com/OshpaGame/blinkpro-master
+echo 📂 Backup: %BACKUP_FILE%
 echo.
-
-REM === Abrir Render automáticamente ===
-start https://blinkpro-master.onrender.com
 
 pause
 exit /b
