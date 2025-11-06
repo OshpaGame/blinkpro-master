@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: blinkpro-master
+    env: node
+    plan: starter          # Usa starter o superior (los gratuitos se duermen)
+    autoDeploy: true
+    buildCommand: "npm install"
+    startCommand: "node server.js"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: KEEPALIVE
+        value: true
+    healthCheckPath: /
+    domains:
+      - blinkpro-master.onrender.com

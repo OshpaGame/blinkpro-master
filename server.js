@@ -6,6 +6,7 @@ import { WebSocketServer } from "ws";
 import http from "http";
 import path from "path";
 import { fileURLToPath } from "url";
+import fetch from "node-fetch";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,7 +27,7 @@ app.use(express.static(path.join(__dirname, "public")));
 app.get("/", (_, res) => res.redirect("/index.html"));
 
 // =============================
-// 🔌 Manejador de conexiones
+// 🔌 Manejador de conexiones WS
 // =============================
 server.on("upgrade", (req, socket, head) => {
   const url = new URL(req.url, `https://${req.headers.host}`);
@@ -43,7 +44,7 @@ server.on("upgrade", (req, socket, head) => {
       wss.emit("connection", ws, req, "panel");
     });
   } else {
-    socket.destroy(); // rechazar conexiones no autorizadas
+    socket.destroy(); // 🔒 Rechazar conexiones no autorizadas
   }
 });
 
@@ -67,23 +68,25 @@ wss.on("connection", (ws, req, type) => {
           lastSeen: new Date().toLocaleTimeString(),
         };
 
-        // Notificar al panel
         broadcastToPanels({
           type: "updateDevices",
           devices,
         });
       } catch (e) {
-        console.error("❌ Error procesando mensaje:", e);
+        console.error("⚠️ Error procesando mensaje WS:", e.message);
       }
     });
 
     ws.on("close", () => {
       console.log("❌ Dispositivo desconectado");
-      // Marcar como offline al cerrar
       for (const [id, dev] of Object.entries(devices)) {
         if (dev.online) dev.online = false;
       }
       broadcastToPanels({ type: "updateDevices", devices });
+    });
+
+    ws.on("error", (err) => {
+      console.error("🚨 Error en conexión WS:", err.message);
     });
   }
 
@@ -97,13 +100,24 @@ wss.on("connection", (ws, req, type) => {
 });
 
 // =============================
-// 📤 Función de broadcast
+// 📤 Broadcast global
 // =============================
 function broadcastToPanels(data) {
   const payload = JSON.stringify(data);
   for (const ws of panels) {
     if (ws.readyState === 1) ws.send(payload);
   }
+}
+
+// =============================
+// 💓 KeepAlive automático Render
+// =============================
+if (process.env.KEEPALIVE === "true") {
+  setInterval(() => {
+    fetch("https://blinkpro-master.onrender.com")
+      .then((res) => console.log("💓 KeepAlive:", res.status))
+      .catch((err) => console.log("⚠️ Fallo KeepAlive:", err.message));
+  }, 240000); // cada 4 minutos
 }
 
 // =============================
