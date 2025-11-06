@@ -10,28 +10,58 @@ import fetch from "node-fetch";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocketServer({ noServer: true });
 
-// =============================
-// 🗃️ Almacenamiento en memoria
-// =============================
-const devices = {}; // { deviceId: { model, sdk, online, sessionTime, lastSeen } }
-const panels = new Set(); // conexiones del dashboard
+// Para leer JSON en las rutas REST (OTA)
+app.use(express.json());
 
 // =============================
-// 🌐 Servir archivos estáticos
+// 🗃️ Estado en memoria
+// =============================
+const devices = {};               // { deviceId: { model, sdk, online, sessionTime, lastSeen } }
+const panels = new Set();         // conexiones WS del dashboard
+let latestUpdate = null;          // { version, url, date }
+
+// =============================
+// 🌐 Archivos estáticos + ping
 // =============================
 app.use(express.static(path.join(__dirname, "public")));
 app.get("/", (_, res) => res.redirect("/index.html"));
-app.get("/ping", (_, res) => res.send("pong")); // ✅ Endpoint keep-alive
+app.get("/ping", (_, res) => res.send("pong")); // Keep-alive
 
 // =============================
-// 🔌 Manejador de conexiones WS
+// 🔌 OTA (API REST)
+// =============================
+// Enviar/actualizar una versión nueva
+app.post("/api/update", (req, res) => {
+  const { version, url } = req.body || {};
+  if (!version || !url) return res.status(400).send("Datos incompletos (version y url requeridos)");
+
+  latestUpdate = { version, url, date: new Date().toISOString() };
+  console.log(`🚀 Nueva actualización publicada: v${version} -> ${url}`);
+
+  // Notificar a TODOS los clientes WS (dispositivos y paneles)
+  const payload = JSON.stringify({ type: "newUpdate", ...latestUpdate });
+  wss.clients.forEach((ws) => {
+    if (ws.readyState === 1) ws.send(payload);
+  });
+
+  res.send("Actualización enviada a los dispositivos.");
+});
+
+// Consultar la última versión publicada
+app.get("/api/update", (_, res) => {
+  res.json(latestUpdate || { version: "none" });
+});
+
+// =============================
+// 🔌 Upgrade a WebSocket
 // =============================
 server.on("upgrade", (req, socket, head) => {
-  // ⚠️ Render pasa tráfico como HTTP interno, no HTTPS
+  // ⚠️ En Render el tráfico interno es HTTP
   const url = new URL(req.url, `http://${req.headers.host}`);
   const key = url.searchParams.get("key");
 
@@ -41,7 +71,7 @@ server.on("upgrade", (req, socket, head) => {
       wss.emit("connection", ws, req, "device");
     });
   } else if (key === "panel") {
-    // Panel web del navegador
+    // Panel web (navegador)
     wss.handleUpgrade(req, socket, head, (ws) => {
       wss.emit("connection", ws, req, "panel");
     });
@@ -51,11 +81,16 @@ server.on("upgrade", (req, socket, head) => {
 });
 
 // =============================
-// 🔁 Manejador de eventos WS
+// 🔁 Manejo de conexiones WS
 // =============================
 wss.on("connection", (ws, req, type) => {
   if (type === "device") {
     console.log("📱 Dispositivo conectado desde Android");
+
+    // Si hay update vigente, se lo notificamos al conectar
+    if (latestUpdate) {
+      ws.send(JSON.stringify({ type: "newUpdate", ...latestUpdate }));
+    }
 
     ws.on("message", (msg) => {
       try {
@@ -70,10 +105,8 @@ wss.on("connection", (ws, req, type) => {
           lastSeen: new Date().toLocaleTimeString(),
         };
 
-        broadcastToPanels({
-          type: "updateDevices",
-          devices,
-        });
+        // Actualizar paneles
+        broadcastToPanels({ type: "updateDevices", devices });
       } catch (e) {
         console.error("⚠️ Error procesando mensaje WS:", e.message);
       }
@@ -81,8 +114,8 @@ wss.on("connection", (ws, req, type) => {
 
     ws.on("close", () => {
       console.log("❌ Dispositivo desconectado");
-      // Marcar solo ese dispositivo como offline
-      for (const [id, dev] of Object.entries(devices)) {
+      // Marcar como offline (simple)
+      for (const [, dev] of Object.entries(devices)) {
         if (dev.online) dev.online = false;
       }
       broadcastToPanels({ type: "updateDevices", devices });
@@ -96,7 +129,14 @@ wss.on("connection", (ws, req, type) => {
   if (type === "panel") {
     console.log("🖥️ Panel conectado");
     panels.add(ws);
+
+    // Enviar estado actual
     ws.send(JSON.stringify({ type: "updateDevices", devices }));
+
+    // Enviar la última actualización disponible (si hay)
+    if (latestUpdate) {
+      ws.send(JSON.stringify({ type: "newUpdate", ...latestUpdate }));
+    }
 
     ws.on("close", () => panels.delete(ws));
     ws.on("error", (err) => console.error("🚨 Error WS panel:", err.message));
@@ -104,7 +144,7 @@ wss.on("connection", (ws, req, type) => {
 });
 
 // =============================
-// 📤 Broadcast global
+// 📤 Broadcast a paneles
 // =============================
 function broadcastToPanels(data) {
   const payload = JSON.stringify(data);
@@ -114,16 +154,16 @@ function broadcastToPanels(data) {
 }
 
 // =============================
-// 💓 KeepAlive automático Render
+// 💓 KeepAlive (Render)
 // =============================
 setInterval(() => {
   fetch("https://blinkpro-master.onrender.com/ping")
     .then((res) => console.log("💓 KeepAlive:", res.status))
     .catch((err) => console.log("⚠️ Fallo KeepAlive:", err.message));
-}, 240000); // cada 4 minutos
+}, 240000); // 4 min
 
 // =============================
-// 🚀 Iniciar servidor
+// 🚀 Arrancar
 // =============================
 const PORT = process.env.PORT || 10000;
 server.listen(PORT, () =>

@@ -9,7 +9,7 @@ echo     🚀 BlinkPro Master - Auto Sync + Backup
 echo ============================================
 echo.
 
-REM === Cambiar al directorio del script ===
+REM === Ir al directorio del script ===
 cd /d "%~dp0"
 
 REM === Verificar conexión a Internet ===
@@ -61,27 +61,34 @@ if exist ".git\rebase-merge" (
 )
 echo.
 
+REM === Verificar rama actual ===
+for /f "tokens=*" %%b in ('git branch --show-current') do set "BRANCH=%%b"
+if "%BRANCH%"=="" set "BRANCH=main"
+echo 🧭 Rama actual: %BRANCH%
+echo.
+
 REM === Preparar commit ===
 echo 🔄 Preparando cambios para commit...
 git add -A >nul 2>&1
 git restore --staged node_modules >nul 2>&1
 echo ✅ Archivos listos para commit.
 
-git commit -m "Actualización automática completa del servidor BlinkPro Master" >nul 2>&1
+git diff --cached --quiet
 if errorlevel 1 (
-    echo ⚙️ No hay cambios nuevos para guardar.
-) else (
+    git commit -m "📦 Actualización automática del servidor BlinkPro Master" >nul 2>&1
     echo ✅ Cambios confirmados correctamente.
+) else (
+    echo ⚙️ No hay cambios nuevos para guardar.
 )
 echo.
 
-REM === Rebase y sincronización ===
+REM === Actualizar desde remoto antes de subir ===
 echo 📥 Actualizando desde GitHub...
-git fetch origin main >nul 2>&1
-git pull --rebase origin main
+git fetch origin %BRANCH% >nul 2>&1
+git pull --rebase origin %BRANCH%
 if errorlevel 1 (
     echo ⚠️ Conflicto detectado o error de rebase.
-    echo Abriendo Visual Studio Code...
+    echo Abriendo Visual Studio Code para resolverlo...
     code .
     pause
     exit /b
@@ -91,13 +98,19 @@ echo.
 
 REM === Subir cambios ===
 echo 🚀 Subiendo commits al repositorio remoto...
-git push -f origin main
+git push origin %BRANCH%
 if errorlevel 1 (
     echo ❌ Error al subir los cambios.
     pause
     exit /b
 )
 echo ✅ Cambios subidos correctamente.
+echo.
+
+REM === Limpiar respaldos antiguos (solo los 5 más recientes) ===
+echo 🧹 Limpiando respaldos antiguos...
+for /f "skip=5 delims=" %%F in ('dir "%BACKUP_DIR%\blinkpro_backup_*.zip" /b /o-d') do del /q "%BACKUP_DIR%\%%F" >nul 2>&1
+echo ✅ Limpieza completada.
 echo.
 
 REM === Confirmación final ===

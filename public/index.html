@@ -14,13 +14,11 @@
         margin: 0;
         padding: 20px;
       }
-
       @keyframes gradientMove {
         0% { background-position: 0% 50%; }
         50% { background-position: 100% 50%; }
         100% { background-position: 0% 50%; }
       }
-
       h1 {
         color: #38bdf8;
         text-align: center;
@@ -29,8 +27,6 @@
         letter-spacing: 1px;
         text-shadow: 0 0 8px #00bcd4;
       }
-
-      /* === PANEL DE INDICADORES === */
       .indicators {
         display: flex;
         justify-content: center;
@@ -38,7 +34,6 @@
         flex-wrap: wrap;
         margin-bottom: 25px;
       }
-
       .card {
         background: rgba(27, 31, 39, 0.85);
         border: 1px solid rgba(56, 189, 248, 0.4);
@@ -49,24 +44,9 @@
         text-align: center;
         transition: transform 0.2s ease, box-shadow 0.3s ease;
       }
-
-      .card:hover {
-        transform: scale(1.05);
-        box-shadow: 0 0 15px rgba(56, 189, 248, 0.6);
-      }
-
-      .card-title {
-        font-size: 0.9rem;
-        color: #94a3b8;
-      }
-
-      .card-value {
-        font-size: 1.6rem;
-        font-weight: bold;
-        color: #22d3ee;
-        text-shadow: 0 0 8px #22d3ee;
-      }
-
+      .card:hover { transform: scale(1.05); box-shadow: 0 0 15px rgba(56, 189, 248, 0.6); }
+      .card-title { font-size: 0.9rem; color: #94a3b8; }
+      .card-value { font-size: 1.6rem; font-weight: bold; color: #22d3ee; text-shadow: 0 0 8px #22d3ee; }
       table {
         width: 100%;
         border-collapse: collapse;
@@ -75,85 +55,48 @@
         overflow: hidden;
         box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
       }
-
-      th, td {
-        padding: 14px;
-        text-align: center;
-      }
-
-      th {
-        background: rgba(38, 50, 56, 0.9);
-        color: #00bcd4;
-        font-weight: 600;
-      }
-
-      tr {
-        transition: background 0.3s ease, transform 0.2s ease;
-      }
-
-      tr:hover {
-        background: rgba(56, 70, 90, 0.4);
-        transform: scale(1.01);
-      }
-
-      tr:nth-child(even) {
-        background: rgba(40, 44, 60, 0.3);
-      }
-
-      .status {
-        font-size: 20px;
-        font-weight: bold;
-      }
-
+      th, td { padding: 14px; text-align: center; }
+      th { background: rgba(38, 50, 56, 0.9); color: #00bcd4; font-weight: 600; }
+      tr { transition: background 0.3s ease, transform 0.2s ease; }
+      tr:hover { background: rgba(56, 70, 90, 0.4); transform: scale(1.01); }
+      tr:nth-child(even) { background: rgba(40, 44, 60, 0.3); }
+      .status { font-size: 20px; font-weight: bold; }
       .online { color: #4caf50; animation: blinkGreen 2s infinite; }
       .offline { color: #f44336; animation: blinkRed 2s infinite; }
-
       @keyframes blinkGreen { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
       @keyframes blinkRed { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
+      .progress-bar { width: 100%; height: 10px; border-radius: 5px; background: rgba(80, 90, 110, 0.5); overflow: hidden; margin-top: 6px; }
+      .progress-fill { height: 100%; border-radius: 5px; background: linear-gradient(90deg, #10b981, #22d3ee); transition: width 0.6s ease; }
+      .footer { text-align: center; margin-top: 25px; color: #94a3b8; font-size: 0.9rem; }
+      .chart-container { max-width: 1000px; margin: 40px auto; background: rgba(27, 31, 39, 0.9); border-radius: 12px; padding: 20px; box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3); }
+      canvas { width: 100% !important; height: 320px !important; }
 
-      .progress-bar {
-        width: 100%;
-        height: 10px;
-        border-radius: 5px;
-        background: rgba(80, 90, 110, 0.5);
-        overflow: hidden;
-        margin-top: 6px;
-      }
-
-      .progress-fill {
-        height: 100%;
-        border-radius: 5px;
-        background: linear-gradient(90deg, #10b981, #22d3ee);
-        transition: width 0.6s ease;
-      }
-
-      .footer {
-        text-align: center;
-        margin-top: 25px;
-        color: #94a3b8;
-        font-size: 0.9rem;
-      }
-
-      .chart-container {
-        max-width: 1000px;
-        margin: 40px auto;
-        background: rgba(27, 31, 39, 0.9);
-        border-radius: 12px;
-        padding: 20px;
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-      }
-
-      canvas {
-        width: 100% !important;
-        height: 320px !important;
-      }
+      /* OTA form */
+      .ota { max-width: 1000px; margin: 30px auto; background: rgba(27,31,39,.9); border-radius: 12px; padding: 16px; box-shadow: 0 8px 25px rgba(0,0,0,.3); }
+      .ota h2 { text-align:center; color:#38bdf8; margin: 0 0 10px; }
+      .ota form { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
+      .ota input { padding:10px; border-radius:8px; border:1px solid #38bdf8; background:#0f172a; color:#e2e8f0; }
+      .ota button { padding:10px 18px; border:none; border-radius:8px; background:#38bdf8; color:#0f172a; cursor:pointer; font-weight:600; }
+      .ota .hint { text-align:center; color:#94a3b8; margin-top:10px; font-size:.9rem; }
+      .badge { display:inline-block; padding:2px 8px; border-radius:999px; background:#0ea5e9; color:#001018; font-weight:700; margin-left:6px;}
     </style>
   </head>
 
   <body>
     <h1>📡 BlinkPro Master Panel</h1>
 
-    <!-- 🔹 Indicadores dinámicos -->
+    <!-- 🔹 OTA / Publicar actualización -->
+    <div class="ota">
+      <h2>🚀 Enviar actualización OTA <span id="latestBadge" class="badge" style="display:none"></span></h2>
+      <form id="updateForm">
+        <input id="versionInput" type="text" placeholder="Versión (ej. 1.2.0)" />
+        <input id="urlInput" type="text" placeholder="Enlace directo APK (https://...apk)" size="50" />
+        <button type="submit">Enviar actualización</button>
+      </form>
+      <div class="hint">Pega un enlace directo de APK. Los dispositivos verán una notificación.</div>
+    </div>
+
+    <!-- 🔹 Indicadores -->
     <div class="indicators">
       <div class="card">
         <div class="card-title">🟢 Usuarios en línea</div>
@@ -201,20 +144,43 @@
       const ramValue = document.getElementById("ramValue");
       const onlineValue = document.getElementById("onlineValue");
       const totalValue = document.getElementById("totalValue");
+      const latestBadge = document.getElementById("latestBadge");
 
-      function simulateSystemStats() {
-        const cpu = (Math.random() * 60 + 30).toFixed(1);
-        const ram = (Math.random() * 50 + 40).toFixed(1);
-        cpuValue.textContent = cpu + "%";
-        ramValue.textContent = ram + "%";
+      // === Form OTA ===
+      document.getElementById("updateForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const version = document.getElementById("versionInput").value.trim();
+        const url = document.getElementById("urlInput").value.trim();
+        if (!version || !url) return alert("Completa versión y URL");
+        const res = await fetch("/api/update", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ version, url })
+        });
+        const text = await res.text();
+        alert(text);
+      });
+
+      function setLatestBadge(data) {
+        if (data?.version && data.version !== "none") {
+          latestBadge.style.display = "inline-block";
+          latestBadge.textContent = `v${data.version}`;
+        }
       }
 
       function formatTime(seconds) {
-        const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
+        const mins = Math.floor((seconds || 0) / 60);
+        const secs = (seconds || 0) % 60;
         return `${mins}m ${secs}s`;
       }
 
+      // Simulación de CPU/RAM en panel (visual)
+      function simulateSystemStats() {
+        cpuValue.textContent = (Math.random() * 60 + 30).toFixed(1) + "%";
+        ramValue.textContent = (Math.random() * 50 + 40).toFixed(1) + "%";
+      }
+
+      // === Gráfico
       const ctx = document.getElementById("activityChart").getContext("2d");
       const glowPlugin = {
         id: "glow",
@@ -228,10 +194,7 @@
           ctx.strokeStyle = "#22d3ee";
           ctx.lineWidth = 2;
           ctx.beginPath();
-          meta.data.forEach((p, idx) => {
-            if (idx === 0) ctx.moveTo(p.x, p.y);
-            else ctx.lineTo(p.x, p.y);
-          });
+          meta.data.forEach((p, idx) => (idx ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
           ctx.stroke();
           ctx.restore();
         },
@@ -243,7 +206,8 @@
           { label: "Usuarios en línea", data: [], borderColor: "#22d3ee", backgroundColor: "rgba(34,211,238,0.15)", tension: 0.4, fill: true, pointRadius: 0 },
           { label: "Usuarios totales", data: [], borderColor: "#9ca3af", backgroundColor: "rgba(156,163,175,0.1)", borderDash: [5,5], tension: 0.4, fill: true, pointRadius: 0 }
         ]},
-        options: { responsive: true, animation: { duration: 400 }, plugins: { legend: { labels: { color: "#38bdf8" } } }, scales: { x: { ticks: { color: "#94a3b8" } }, y: { beginAtZero: true, ticks: { color: "#94a3b8" } } } },
+        options: { responsive: true, animation: { duration: 400 }, plugins: { legend: { labels: { color: "#38bdf8" } } },
+          scales: { x: { ticks: { color: "#94a3b8" } }, y: { beginAtZero: true, ticks: { color: "#94a3b8" } } } },
         plugins: [glowPlugin],
       });
 
@@ -262,31 +226,40 @@
 
       ws.onmessage = (event) => {
         const msg = JSON.parse(event.data);
+
         if (msg.type === "updateDevices") {
-          const devices = msg.devices;
+          const devices = msg.devices || {};
           const tbody = document.querySelector("#devicesTable tbody");
           tbody.innerHTML = "";
+
           totalCount = Object.keys(devices).length;
           onlineCount = Object.values(devices).filter((d) => d.online).length;
           onlineValue.textContent = onlineCount;
           totalValue.textContent = totalCount;
 
           Object.entries(devices).forEach(([id, dev]) => {
-            const progressPercent = Math.min(dev.sessionTime / 600, 100);
+            const progressPercent = Math.min((dev.sessionTime || 0) / 600, 100);
             const row = document.createElement("tr");
             row.innerHTML = `
               <td class="status ${dev.online ? "online" : "offline"}">${dev.online ? "🟢" : "🔴"}</td>
-              <td>${dev.model}</td>
-              <td>${dev.sdk}</td>
-              <td>${formatTime(dev.sessionTime || 0)}
+              <td>${dev.model || "-"}</td>
+              <td>${dev.sdk ?? "-"}</td>
+              <td>${formatTime(dev.sessionTime)}
                 <div class="progress-bar"><div class="progress-fill" style="width:${progressPercent}%;"></div></div>
               </td>
-              <td>${dev.lastSeen}</td>
+              <td>${dev.lastSeen || "-"}</td>
             `;
             tbody.appendChild(row);
           });
         }
+
+        if (msg.type === "newUpdate") {
+          setLatestBadge(msg);
+        }
       };
+
+      // Primer fetch de la última OTA (por si el WS llega tarde)
+      fetch("/api/update").then(r => r.json()).then(setLatestBadge).catch(()=>{});
 
       setInterval(() => {
         updateChart(onlineCount, totalCount);
