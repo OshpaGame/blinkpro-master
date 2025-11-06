@@ -21,9 +21,12 @@ app.use(express.json());
 // =============================
 // 🗃️ Estado en memoria
 // =============================
-const devices = {};               // { deviceId: { model, sdk, online, sessionTime, lastSeen } }
-const panels = new Set();         // conexiones WS del dashboard
-let latestUpdate = null;          // { version, url, date }
+// Estructura: devices[deviceId] = {
+//   model, sdk, online, sessionTime, lastSeen, version
+// }
+const devices = {};
+const panels = new Set(); // conexiones WS del dashboard
+let latestUpdate = null;  // { version, url, date }
 
 // =============================
 // 🌐 Archivos estáticos + ping
@@ -35,15 +38,17 @@ app.get("/ping", (_, res) => res.send("pong")); // Keep-alive
 // =============================
 // 🔌 OTA (API REST)
 // =============================
-// Enviar/actualizar una versión nueva
+// Publicar una nueva actualización
 app.post("/api/update", (req, res) => {
   const { version, url } = req.body || {};
-  if (!version || !url) return res.status(400).send("Datos incompletos (version y url requeridos)");
+  if (!version || !url) {
+    return res.status(400).send("Datos incompletos (version y url requeridos)");
+  }
 
   latestUpdate = { version, url, date: new Date().toISOString() };
   console.log(`🚀 Nueva actualización publicada: v${version} -> ${url}`);
 
-  // Notificar a TODOS los clientes WS (dispositivos y paneles)
+  // Notificar a TODOS los WS (dispositivos y paneles)
   const payload = JSON.stringify({ type: "newUpdate", ...latestUpdate });
   wss.clients.forEach((ws) => {
     if (ws.readyState === 1) ws.send(payload);
@@ -87,23 +92,30 @@ wss.on("connection", (ws, req, type) => {
   if (type === "device") {
     console.log("📱 Dispositivo conectado desde Android");
 
-    // Si hay update vigente, se lo notificamos al conectar
-    if (latestUpdate) {
-      ws.send(JSON.stringify({ type: "newUpdate", ...latestUpdate }));
-    }
+    // Si hay un update global, NO lo enviamos aún; esperamos el primer estado
+    // para saber qué versión trae este dispositivo.
 
     ws.on("message", (msg) => {
       try {
         const data = JSON.parse(msg.toString());
+        if (data.type !== "deviceStatus") return;
+
         const id = data.deviceId || "unknown";
+        const version = data.version || "unknown";
 
         devices[id] = {
           model: data.model,
           sdk: data.sdk,
-          online: data.online,
+          online: !!data.online,
           sessionTime: data.sessionTime,
           lastSeen: new Date().toLocaleTimeString(),
+          version
         };
+
+        // Enviar update SOLO si el dispositivo no tiene la última versión
+        if (latestUpdate && version !== "unknown" && version !== latestUpdate.version) {
+          ws.send(JSON.stringify({ type: "newUpdate", ...latestUpdate }));
+        }
 
         // Actualizar paneles
         broadcastToPanels({ type: "updateDevices", devices });
@@ -114,7 +126,7 @@ wss.on("connection", (ws, req, type) => {
 
     ws.on("close", () => {
       console.log("❌ Dispositivo desconectado");
-      // Marcar como offline (simple)
+      // Marcar offline a los que estén online (simple)
       for (const [, dev] of Object.entries(devices)) {
         if (dev.online) dev.online = false;
       }
@@ -133,7 +145,7 @@ wss.on("connection", (ws, req, type) => {
     // Enviar estado actual
     ws.send(JSON.stringify({ type: "updateDevices", devices }));
 
-    // Enviar la última actualización disponible (si hay)
+    // Enviar la última actualización publicada (si existe)
     if (latestUpdate) {
       ws.send(JSON.stringify({ type: "newUpdate", ...latestUpdate }));
     }

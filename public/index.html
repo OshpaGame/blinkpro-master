@@ -27,6 +27,8 @@
         letter-spacing: 1px;
         text-shadow: 0 0 8px #00bcd4;
       }
+
+      /* 🔹 Tarjetas de indicadores superiores */
       .indicators {
         display: flex;
         justify-content: center;
@@ -47,6 +49,24 @@
       .card:hover { transform: scale(1.05); box-shadow: 0 0 15px rgba(56, 189, 248, 0.6); }
       .card-title { font-size: 0.9rem; color: #94a3b8; }
       .card-value { font-size: 1.6rem; font-weight: bold; color: #22d3ee; text-shadow: 0 0 8px #22d3ee; }
+
+      /* 🔥 Animaciones suaves para el indicador de Desactualizados */
+      @keyframes pulseAmber {
+        0%, 100% { opacity: 0.8; text-shadow: 0 0 8px #f59e0b; }
+        50% { opacity: 1; text-shadow: 0 0 20px #fbbf24; }
+      }
+      @keyframes pulseRed {
+        0%, 100% { opacity: 0.8; text-shadow: 0 0 8px #ef4444; }
+        50% { opacity: 1; text-shadow: 0 0 20px #f87171; }
+      }
+      .pulse-amber {
+        animation: pulseAmber 2s infinite ease-in-out;
+      }
+      .pulse-red {
+        animation: pulseRed 1.8s infinite ease-in-out;
+      }
+
+      /* 🔹 Tabla de dispositivos */
       table {
         width: 100%;
         border-collapse: collapse;
@@ -65,27 +85,38 @@
       .offline { color: #f44336; animation: blinkRed 2s infinite; }
       @keyframes blinkGreen { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
       @keyframes blinkRed { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
+
+      /* 🔹 Barra de tiempo activo */
       .progress-bar { width: 100%; height: 10px; border-radius: 5px; background: rgba(80, 90, 110, 0.5); overflow: hidden; margin-top: 6px; }
       .progress-fill { height: 100%; border-radius: 5px; background: linear-gradient(90deg, #10b981, #22d3ee); transition: width 0.6s ease; }
+
+      /* 🔹 Elementos adicionales */
       .footer { text-align: center; margin-top: 25px; color: #94a3b8; font-size: 0.9rem; }
       .chart-container { max-width: 1000px; margin: 40px auto; background: rgba(27, 31, 39, 0.9); border-radius: 12px; padding: 20px; box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3); }
       canvas { width: 100% !important; height: 320px !important; }
 
-      /* OTA form */
-      .ota { max-width: 1000px; margin: 30px auto; background: rgba(27,31,39,.9); border-radius: 12px; padding: 16px; box-shadow: 0 8px 25px rgba(0,0,0,.3); }
+      /* 🔹 Formulario OTA */
+      .ota { max-width: 1000px; margin: 30px auto; background: rgba(27,31,39,.9); border-radius: 12px; padding: 16px; box-shadow: 0 8px 25px rgba(0,0,0,.3); text-align:center; }
       .ota h2 { text-align:center; color:#38bdf8; margin: 0 0 10px; }
       .ota form { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
       .ota input { padding:10px; border-radius:8px; border:1px solid #38bdf8; background:#0f172a; color:#e2e8f0; }
       .ota button { padding:10px 18px; border:none; border-radius:8px; background:#38bdf8; color:#0f172a; cursor:pointer; font-weight:600; }
       .ota .hint { text-align:center; color:#94a3b8; margin-top:10px; font-size:.9rem; }
       .badge { display:inline-block; padding:2px 8px; border-radius:999px; background:#0ea5e9; color:#001018; font-weight:700; margin-left:6px;}
+      .pill { display:inline-block; padding:4px 10px; border-radius:999px; font-size:12px; font-weight:600; color:#0e141b; }
+      .pill.ok { background:#22d3ee; }
+      .pill.unknown { background:#f59e0b; }
+
+      /* 🔹 Botón de filtro */
+      .filter-btn { margin-top:10px; padding:8px 16px; border:none; border-radius:8px; background:#10b981; color:#001018; font-weight:600; cursor:pointer; }
+      .filter-btn.off { background:#334155; color:#94a3b8; }
     </style>
   </head>
 
   <body>
     <h1>📡 BlinkPro Master Panel</h1>
 
-    <!-- 🔹 OTA / Publicar actualización -->
+    <!-- 🔸 Formulario para enviar nuevas actualizaciones OTA -->
     <div class="ota">
       <h2>🚀 Enviar actualización OTA <span id="latestBadge" class="badge" style="display:none"></span></h2>
       <form id="updateForm">
@@ -93,35 +124,31 @@
         <input id="urlInput" type="text" placeholder="Enlace directo APK (https://...apk)" size="50" />
         <button type="submit">Enviar actualización</button>
       </form>
-      <div class="hint">Pega un enlace directo de APK. Los dispositivos verán una notificación.</div>
+      <button id="toggleFilter" class="filter-btn off">🧩 Mostrar solo desactualizados</button>
+      <div class="hint">Los dispositivos verán una notificación automática si hay nueva versión.</div>
     </div>
 
-    <!-- 🔹 Indicadores -->
+    <!-- 🔹 Indicadores principales -->
     <div class="indicators">
+      <div class="card"><div class="card-title">🟢 Usuarios en línea</div><div class="card-value" id="onlineValue">0</div></div>
+      <div class="card"><div class="card-title">📱 Total detectados</div><div class="card-value" id="totalValue">0</div></div>
+      <div class="card"><div class="card-title">⚙️ CPU promedio</div><div class="card-value" id="cpuValue">--%</div></div>
+      <div class="card"><div class="card-title">💾 RAM usada</div><div class="card-value" id="ramValue">--%</div></div>
       <div class="card">
-        <div class="card-title">🟢 Usuarios en línea</div>
-        <div class="card-value" id="onlineValue">0</div>
-      </div>
-      <div class="card">
-        <div class="card-title">📱 Total detectados</div>
-        <div class="card-value" id="totalValue">0</div>
-      </div>
-      <div class="card">
-        <div class="card-title">⚙️ CPU promedio</div>
-        <div class="card-value" id="cpuValue">--%</div>
-      </div>
-      <div class="card">
-        <div class="card-title">💾 RAM usada</div>
-        <div class="card-value" id="ramValue">--%</div>
+        <div class="card-title">🧩 Desactualizados</div>
+        <div class="card-value" id="outdatedValue">0</div>
+        <div id="outdatedIcon" style="font-size:18px; margin-top:5px; display:none;">⚠️</div>
       </div>
     </div>
 
+    <!-- 🔹 Tabla de dispositivos -->
     <table id="devicesTable">
       <thead>
         <tr>
           <th>Estado</th>
           <th>Modelo</th>
           <th>SDK</th>
+          <th>Versión instalada</th>
           <th>Tiempo activo</th>
           <th>Último reporte</th>
         </tr>
@@ -129,16 +156,75 @@
       <tbody></tbody>
     </table>
 
-    <div class="chart-container">
-      <canvas id="activityChart"></canvas>
-    </div>
-
+    <div class="chart-container"><canvas id="activityChart"></canvas></div>
     <div class="footer">BlinkPro Dashboard © 2025</div>
 
     <script>
       const ws = new WebSocket("wss://blinkpro-master.onrender.com/ws?key=panel");
+      let devicesData = {};
+      let filterActive = false;
+      let latestVersion = null;
+      const toggleBtn = document.getElementById("toggleFilter");
 
-      let onlineCount = 0, totalCount = 0;
+      // 🔄 Alternar filtro
+      toggleBtn.onclick = () => {
+        filterActive = !filterActive;
+        toggleBtn.textContent = filterActive ? "✅ Mostrar todos" : "🧩 Mostrar solo desactualizados";
+        toggleBtn.classList.toggle("off", !filterActive);
+        renderDevices();
+      };
+
+      // 📋 Renderizar dispositivos
+      function renderDevices() {
+        const tbody = document.querySelector("#devicesTable tbody");
+        tbody.innerHTML = "";
+        const devices = Object.entries(devicesData);
+        let outdatedCount = 0;
+
+        devices.forEach(([id, dev]) => {
+          const version = dev.version || "unknown";
+          const isOld = latestVersion && version !== latestVersion;
+          if (isOld) outdatedCount++;
+          if (filterActive && !isOld) return;
+
+          const progressPercent = Math.min((dev.sessionTime || 0) / 600, 100);
+          const pillClass = version === "unknown" ? "pill unknown" : isOld ? "pill unknown" : "pill ok";
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td class="status ${dev.online ? "online" : "offline"}">${dev.online ? "🟢" : "🔴"}</td>
+            <td>${dev.model || "-"}</td>
+            <td>${dev.sdk ?? "-"}</td>
+            <td><span class="${pillClass}">${version}</span></td>
+            <td>${formatTime(dev.sessionTime)}
+              <div class="progress-bar"><div class="progress-fill" style="width:${progressPercent}%;"></div></div>
+            </td>
+            <td>${dev.lastSeen || "-"}</td>`;
+          tbody.appendChild(row);
+        });
+
+        // 🧩 Actualizar contador + color + animación
+        const outCard = document.querySelector("#outdatedValue");
+        const outIcon = document.querySelector("#outdatedIcon");
+        outCard.textContent = outdatedCount;
+
+        outCard.classList.remove("pulse-amber", "pulse-red");
+        outIcon.style.display = "none";
+
+        if (outdatedCount === 0) {
+          outCard.style.color = "#10b981";
+          outCard.style.textShadow = "0 0 10px #10b981";
+        } else if (outdatedCount < 3) {
+          outCard.style.color = "#f59e0b";
+          outCard.style.textShadow = "0 0 10px #f59e0b";
+          outCard.classList.add("pulse-amber");
+          outIcon.style.display = "inline-block";
+        } else {
+          outCard.style.color = "#ef4444";
+          outCard.style.textShadow = "0 0 10px #ef4444";
+          outCard.classList.add("pulse-red");
+          outIcon.style.display = "inline-block";
+        }
+      }
 
       const cpuValue = document.getElementById("cpuValue");
       const ramValue = document.getElementById("ramValue");
@@ -146,7 +232,7 @@
       const totalValue = document.getElementById("totalValue");
       const latestBadge = document.getElementById("latestBadge");
 
-      // === Form OTA ===
+      // 🚀 Enviar actualización OTA
       document.getElementById("updateForm").addEventListener("submit", async (e) => {
         e.preventDefault();
         const version = document.getElementById("versionInput").value.trim();
@@ -157,114 +243,44 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ version, url })
         });
-        const text = await res.text();
-        alert(text);
+        alert(await res.text());
       });
 
       function setLatestBadge(data) {
         if (data?.version && data.version !== "none") {
+          latestVersion = data.version;
           latestBadge.style.display = "inline-block";
           latestBadge.textContent = `v${data.version}`;
+          renderDevices();
         }
       }
 
-      function formatTime(seconds) {
-        const mins = Math.floor((seconds || 0) / 60);
-        const secs = (seconds || 0) % 60;
-        return `${mins}m ${secs}s`;
+      function formatTime(sec) {
+        const m = Math.floor((sec || 0) / 60);
+        const s = (sec || 0) % 60;
+        return `${m}m ${s}s`;
       }
 
-      // Simulación de CPU/RAM en panel (visual)
       function simulateSystemStats() {
         cpuValue.textContent = (Math.random() * 60 + 30).toFixed(1) + "%";
         ramValue.textContent = (Math.random() * 50 + 40).toFixed(1) + "%";
       }
 
-      // === Gráfico
+      // 📈 Gráfico
       const ctx = document.getElementById("activityChart").getContext("2d");
-      const glowPlugin = {
-        id: "glow",
-        afterDatasetsDraw(chart) {
-          const ctx = chart.ctx;
-          const meta = chart.getDatasetMeta(0);
-          ctx.save();
-          ctx.shadowColor = "#22d3ee";
-          ctx.shadowBlur = 20;
-          ctx.globalAlpha = 0.8;
-          ctx.strokeStyle = "#22d3ee";
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          meta.data.forEach((p, idx) => (idx ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
-          ctx.stroke();
-          ctx.restore();
-        },
+      const glowPlugin = { id:"glow", afterDatasetsDraw(c){const x=c.ctx,m=c.getDatasetMeta(0);x.save();x.shadowColor="#22d3ee";x.shadowBlur=20;x.globalAlpha=0.8;x.strokeStyle="#22d3ee";x.lineWidth=2;x.beginPath();m.data.forEach((p,i)=>i?x.lineTo(p.x,p.y):x.moveTo(p.x,p.y));x.stroke();x.restore();}};
+      const chart = new Chart(ctx,{type:"line",data:{labels:[],datasets:[{label:"Usuarios en línea",data:[],borderColor:"#22d3ee",backgroundColor:"rgba(34,211,238,0.15)",tension:0.4,fill:true,pointRadius:0},{label:"Usuarios totales",data:[],borderColor:"#9ca3af",backgroundColor:"rgba(156,163,175,0.1)",borderDash:[5,5],tension:0.4,fill:true,pointRadius:0}]},options:{responsive:true,plugins:{legend:{labels:{color:"#38bdf8"}}},scales:{x:{ticks:{color:"#94a3b8"}},y:{beginAtZero:true,ticks:{color:"#94a3b8"}}}},plugins:[glowPlugin]});
+
+      function updateChart(on,tot){const n=new Date().toLocaleTimeString(),d=chart.data;d.labels.push(n);d.datasets[0].data.push(on);d.datasets[1].data.push(tot);if(d.labels.length>20){d.labels.shift();d.datasets.forEach(e=>e.data.shift());}chart.update();}
+
+      ws.onmessage=(e)=>{
+        const msg=JSON.parse(e.data);
+        if(msg.type==="updateDevices"){devicesData=msg.devices||{};totalValue.textContent=Object.keys(devicesData).length;onlineValue.textContent=Object.values(devicesData).filter(d=>d.online).length;renderDevices();}
+        if(msg.type==="newUpdate"){setLatestBadge(msg);}
       };
 
-      const activityChart = new Chart(ctx, {
-        type: "line",
-        data: { labels: [], datasets: [
-          { label: "Usuarios en línea", data: [], borderColor: "#22d3ee", backgroundColor: "rgba(34,211,238,0.15)", tension: 0.4, fill: true, pointRadius: 0 },
-          { label: "Usuarios totales", data: [], borderColor: "#9ca3af", backgroundColor: "rgba(156,163,175,0.1)", borderDash: [5,5], tension: 0.4, fill: true, pointRadius: 0 }
-        ]},
-        options: { responsive: true, animation: { duration: 400 }, plugins: { legend: { labels: { color: "#38bdf8" } } },
-          scales: { x: { ticks: { color: "#94a3b8" } }, y: { beginAtZero: true, ticks: { color: "#94a3b8" } } } },
-        plugins: [glowPlugin],
-      });
-
-      function updateChart(online, total) {
-        const now = new Date().toLocaleTimeString();
-        const data = activityChart.data;
-        data.labels.push(now);
-        data.datasets[0].data.push(online);
-        data.datasets[1].data.push(total);
-        if (data.labels.length > 20) {
-          data.labels.shift();
-          data.datasets.forEach((d) => d.data.shift());
-        }
-        activityChart.update();
-      }
-
-      ws.onmessage = (event) => {
-        const msg = JSON.parse(event.data);
-
-        if (msg.type === "updateDevices") {
-          const devices = msg.devices || {};
-          const tbody = document.querySelector("#devicesTable tbody");
-          tbody.innerHTML = "";
-
-          totalCount = Object.keys(devices).length;
-          onlineCount = Object.values(devices).filter((d) => d.online).length;
-          onlineValue.textContent = onlineCount;
-          totalValue.textContent = totalCount;
-
-          Object.entries(devices).forEach(([id, dev]) => {
-            const progressPercent = Math.min((dev.sessionTime || 0) / 600, 100);
-            const row = document.createElement("tr");
-            row.innerHTML = `
-              <td class="status ${dev.online ? "online" : "offline"}">${dev.online ? "🟢" : "🔴"}</td>
-              <td>${dev.model || "-"}</td>
-              <td>${dev.sdk ?? "-"}</td>
-              <td>${formatTime(dev.sessionTime)}
-                <div class="progress-bar"><div class="progress-fill" style="width:${progressPercent}%;"></div></div>
-              </td>
-              <td>${dev.lastSeen || "-"}</td>
-            `;
-            tbody.appendChild(row);
-          });
-        }
-
-        if (msg.type === "newUpdate") {
-          setLatestBadge(msg);
-        }
-      };
-
-      // Primer fetch de la última OTA (por si el WS llega tarde)
-      fetch("/api/update").then(r => r.json()).then(setLatestBadge).catch(()=>{});
-
-      setInterval(() => {
-        updateChart(onlineCount, totalCount);
-        simulateSystemStats();
-      }, 5000);
+      fetch("/api/update").then(r=>r.json()).then(setLatestBadge).catch(()=>{});
+      setInterval(()=>{updateChart(Object.values(devicesData).filter(d=>d.online).length,Object.keys(devicesData).length);simulateSystemStats();},5000);
     </script>
   </body>
 </html>
