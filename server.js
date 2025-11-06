@@ -1,55 +1,59 @@
+// ======================================================
+// 🚀 BlinkPro Master Server (modular, seguro y escalable)
+// ======================================================
+
 import express from "express";
 import http from "http";
-import { Server } from "socket.io";
+import cors from "cors";
 import { WebSocketServer } from "ws";
+import path from "path";
+import { fileURLToPath } from "url";
+import panelRouter from "./routes/panel.js";
+import socketHandler from "./ws/socketHandler.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: { origin: "*" }
-});
+const wss = new WebSocketServer({ noServer: true });
 
-// 🔹 Mapa de dispositivos conectados
-const devices = {};
-
-// 🔹 Servidor WebSocket (para la app Android)
-const wss = new WebSocketServer({ server });
-
-wss.on("connection", (ws) => {
-  console.log("📱 Dispositivo conectado");
-
-  ws.on("message", (msg) => {
-    try {
-      const data = JSON.parse(msg);
-      const id = data.deviceId || "unknown";
-      devices[id] = {
-        ...data,
-        lastSeen: new Date().toLocaleTimeString(),
-        online: true
-      };
-
-      // Emitir actualización al panel web
-      io.emit("updateDevices", devices);
-    } catch (err) {
-      console.error("❌ Error al procesar mensaje:", err.message);
-    }
-  });
-
-  ws.on("close", () => {
-    for (const id in devices) {
-      devices[id].online = false;
-    }
-    io.emit("updateDevices", devices);
-  });
-});
-
-// 🔹 Servidor HTTP para el panel web
-app.use(express.static("public"));
-
-app.get("/", (req, res) => {
-  res.sendFile(process.cwd() + "/public/index.html");
-});
-
-// 🔹 Escuchar en Render
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`🚀 BlinkPro Master corriendo en puerto ${PORT}`));
+const MASTER_KEY = process.env.MASTER_KEY || "blinkpro-secure-key";
+
+// ============================
+// 🌐 Middlewares
+// ============================
+app.use(cors());
+app.use(express.json());
+app.use(express.static(path.join(__dirname, "public")));
+app.use("/panel", panelRouter);
+
+// ============================
+// 🔒 Autenticación WS opcional
+// ============================
+server.on("upgrade", (request, socket, head) => {
+  const url = new URL(request.url, `http://${request.headers.host}`);
+  const apiKey = url.searchParams.get("key");
+
+  if (apiKey !== MASTER_KEY) {
+    socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
+    socket.destroy();
+    return;
+  }
+
+  if (url.pathname === "/ws") {
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      socketHandler(wss, ws, request);
+    });
+  } else {
+    socket.destroy();
+  }
+});
+
+// ============================
+// 🚀 Inicio del servidor
+// ============================
+server.listen(PORT, () => {
+  console.log(`🌐 BlinkPro Master corriendo en puerto ${PORT}`);
+});
