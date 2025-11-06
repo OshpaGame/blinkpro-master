@@ -1,2 +1,4 @@
-# blinkpro-master
-🔹 BlinkPro Master: el núcleo en la nube del ecosistema BlinkPro. Monitorea todos los dispositivos conectados, analiza actividad en tiempo real y ofrece estadísticas globales desde una interfaz moderna y responsiva. Perfecto para proyectos móviles que requieren control remoto, analítica y supervisión de rendimiento.
+🛰️ BlinkPro Master
+
+Servidor en tiempo real y panel web de monitoreo para la aplicación BlinkPro (Android).
+Permite recibir métricas del dispositivo, mostrar su estado en vivo (🟢 Online / 🔴 Offline), tiempo de sesión, modelo, SDK y más, todo visualizado desde un panel web moderno alojado en Render.com.
