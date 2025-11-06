@@ -1,25 +1,16 @@
-<<<<<<< HEAD
 {
   "name": "blinkpro-master",
   "version": "1.0.0",
+  "description": "Servidor maestro de BlinkPro que recibe datos en tiempo real y muestra panel analítico web.",
   "main": "server.js",
   "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
   "dependencies": {
     "express": "^4.19.2",
     "socket.io": "^4.7.5",
     "ws": "^8.16.0"
   }
 }
-=======
-{
-  "name": "blinkpro-master",
-  "version": "1.0.0",
-  "main": "server.js",
-  "type": "module",
-  "dependencies": {
-    "express": "^4.19.2",
-    "socket.io": "^4.7.5",
-    "ws": "^8.16.0"
-  }
-}
->>>>>>> e1bf73c35b14f7d4363e87974fd9b79b123be269
+
