@@ -25,12 +25,14 @@ const panels = new Set(); // conexiones del dashboard
 // =============================
 app.use(express.static(path.join(__dirname, "public")));
 app.get("/", (_, res) => res.redirect("/index.html"));
+app.get("/ping", (_, res) => res.send("pong")); // ✅ Endpoint keep-alive
 
 // =============================
 // 🔌 Manejador de conexiones WS
 // =============================
 server.on("upgrade", (req, socket, head) => {
-  const url = new URL(req.url, `https://${req.headers.host}`);
+  // ⚠️ Render pasa tráfico como HTTP interno, no HTTPS
+  const url = new URL(req.url, `http://${req.headers.host}`);
   const key = url.searchParams.get("key");
 
   if (key === "blinkpro-secure-key") {
@@ -39,7 +41,7 @@ server.on("upgrade", (req, socket, head) => {
       wss.emit("connection", ws, req, "device");
     });
   } else if (key === "panel") {
-    // Panel del navegador
+    // Panel web del navegador
     wss.handleUpgrade(req, socket, head, (ws) => {
       wss.emit("connection", ws, req, "panel");
     });
@@ -53,7 +55,7 @@ server.on("upgrade", (req, socket, head) => {
 // =============================
 wss.on("connection", (ws, req, type) => {
   if (type === "device") {
-    console.log("📱 Dispositivo conectado");
+    console.log("📱 Dispositivo conectado desde Android");
 
     ws.on("message", (msg) => {
       try {
@@ -79,6 +81,7 @@ wss.on("connection", (ws, req, type) => {
 
     ws.on("close", () => {
       console.log("❌ Dispositivo desconectado");
+      // Marcar solo ese dispositivo como offline
       for (const [id, dev] of Object.entries(devices)) {
         if (dev.online) dev.online = false;
       }
@@ -86,7 +89,7 @@ wss.on("connection", (ws, req, type) => {
     });
 
     ws.on("error", (err) => {
-      console.error("🚨 Error en conexión WS:", err.message);
+      console.error("🚨 Error WS dispositivo:", err.message);
     });
   }
 
@@ -96,6 +99,7 @@ wss.on("connection", (ws, req, type) => {
     ws.send(JSON.stringify({ type: "updateDevices", devices }));
 
     ws.on("close", () => panels.delete(ws));
+    ws.on("error", (err) => console.error("🚨 Error WS panel:", err.message));
   }
 });
 
@@ -112,13 +116,11 @@ function broadcastToPanels(data) {
 // =============================
 // 💓 KeepAlive automático Render
 // =============================
-if (process.env.KEEPALIVE === "true") {
-  setInterval(() => {
-    fetch("https://blinkpro-master.onrender.com")
-      .then((res) => console.log("💓 KeepAlive:", res.status))
-      .catch((err) => console.log("⚠️ Fallo KeepAlive:", err.message));
-  }, 240000); // cada 4 minutos
-}
+setInterval(() => {
+  fetch("https://blinkpro-master.onrender.com/ping")
+    .then((res) => console.log("💓 KeepAlive:", res.status))
+    .catch((err) => console.log("⚠️ Fallo KeepAlive:", err.message));
+}, 240000); // cada 4 minutos
 
 // =============================
 // 🚀 Iniciar servidor
