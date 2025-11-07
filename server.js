@@ -7,6 +7,8 @@ import http from "http";
 import path from "path";
 import { fileURLToPath } from "url";
 import fetch from "node-fetch";
+import fs from "fs";
+import multer from "multer";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,9 +23,6 @@ app.use(express.json());
 // =============================
 // 🗃️ Estado en memoria
 // =============================
-// Estructura: devices[deviceId] = {
-//   model, sdk, online, sessionTime, lastSeen, version
-// }
 const devices = {};
 const panels = new Set(); // conexiones WS del dashboard
 let latestUpdate = null;  // { version, url, date }
@@ -36,9 +35,73 @@ app.get("/", (_, res) => res.redirect("/index.html"));
 app.get("/ping", (_, res) => res.send("pong")); // Keep-alive
 
 // =============================
+// 📦 Configurar almacenamiento de APKs
+// =============================
+const updatesDir = path.join(__dirname, "public", "updates");
+if (!fs.existsSync(updatesDir)) fs.mkdirSync(updatesDir, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: (_, __, cb) => cb(null, updatesDir),
+  filename: (_, file, cb) => {
+    const safeName = file.originalname.replace(/\s+/g, "_");
+    cb(null, safeName);
+  }
+});
+const upload = multer({ storage });
+
+// =============================
+// 📤 Subir nueva APK desde el panel
+// =============================
+app.post("/api/upload", upload.single("apk"), (req, res) => {
+  try {
+    const { version } = req.body;
+    if (!version || !req.file) {
+      return res.status(400).send("Faltan versión o archivo APK");
+    }
+
+    const fileUrl = `/apk/${req.file.filename}`;
+    latestUpdate = {
+      version,
+      url: fileUrl,
+      date: new Date().toISOString()
+    };
+
+    console.log(`📦 Nueva APK subida: ${req.file.filename} (v${version})`);
+
+    // Notificar a todos los clientes WS
+    const payload = JSON.stringify({ type: "newUpdate", ...latestUpdate });
+    wss.clients.forEach((ws) => {
+      if (ws.readyState === 1) ws.send(payload);
+    });
+
+    res.send(`✅ Versión v${version} subida y publicada correctamente.`);
+  } catch (err) {
+    console.error("🚨 Error en /api/upload:", err);
+    res.status(500).send("Error interno al subir APK");
+  }
+});
+
+// =============================
+// 📦 Ruta para descargar APKs
+// =============================
+app.get("/apk/:file", (req, res) => {
+  const fileName = req.params.file;
+  const filePath = path.join(updatesDir, fileName);
+
+  if (!fs.existsSync(filePath)) {
+    console.log(`⚠️ Archivo no encontrado: ${filePath}`);
+    return res.status(404).send("APK no encontrado");
+  }
+
+  console.log(`📦 Enviando APK: ${fileName}`);
+  res.setHeader("Content-Type", "application/vnd.android.package-archive");
+  res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+  fs.createReadStream(filePath).pipe(res);
+});
+
+// =============================
 // 🔌 OTA (API REST)
 // =============================
-// Publicar una nueva actualización
 app.post("/api/update", (req, res) => {
   const { version, url } = req.body || {};
   if (!version || !url) {
@@ -48,7 +111,6 @@ app.post("/api/update", (req, res) => {
   latestUpdate = { version, url, date: new Date().toISOString() };
   console.log(`🚀 Nueva actualización publicada: v${version} -> ${url}`);
 
-  // Notificar a TODOS los WS (dispositivos y paneles)
   const payload = JSON.stringify({ type: "newUpdate", ...latestUpdate });
   wss.clients.forEach((ws) => {
     if (ws.readyState === 1) ws.send(payload);
@@ -57,7 +119,6 @@ app.post("/api/update", (req, res) => {
   res.send("Actualización enviada a los dispositivos.");
 });
 
-// Consultar la última versión publicada
 app.get("/api/update", (_, res) => {
   res.json(latestUpdate || { version: "none" });
 });
@@ -66,22 +127,19 @@ app.get("/api/update", (_, res) => {
 // 🔌 Upgrade a WebSocket
 // =============================
 server.on("upgrade", (req, socket, head) => {
-  // ⚠️ En Render el tráfico interno es HTTP
   const url = new URL(req.url, `http://${req.headers.host}`);
   const key = url.searchParams.get("key");
 
   if (key === "blinkpro-secure-key") {
-    // App Android (cliente)
     wss.handleUpgrade(req, socket, head, (ws) => {
       wss.emit("connection", ws, req, "device");
     });
   } else if (key === "panel") {
-    // Panel web (navegador)
     wss.handleUpgrade(req, socket, head, (ws) => {
       wss.emit("connection", ws, req, "panel");
     });
   } else {
-    socket.destroy(); // 🔒 Rechazar conexiones no autorizadas
+    socket.destroy();
   }
 });
 
@@ -91,9 +149,6 @@ server.on("upgrade", (req, socket, head) => {
 wss.on("connection", (ws, req, type) => {
   if (type === "device") {
     console.log("📱 Dispositivo conectado desde Android");
-
-    // Si hay un update global, NO lo enviamos aún; esperamos el primer estado
-    // para saber qué versión trae este dispositivo.
 
     ws.on("message", (msg) => {
       try {
@@ -112,12 +167,10 @@ wss.on("connection", (ws, req, type) => {
           version
         };
 
-        // Enviar update SOLO si el dispositivo no tiene la última versión
         if (latestUpdate && version !== "unknown" && version !== latestUpdate.version) {
           ws.send(JSON.stringify({ type: "newUpdate", ...latestUpdate }));
         }
 
-        // Actualizar paneles
         broadcastToPanels({ type: "updateDevices", devices });
       } catch (e) {
         console.error("⚠️ Error procesando mensaje WS:", e.message);
@@ -126,7 +179,6 @@ wss.on("connection", (ws, req, type) => {
 
     ws.on("close", () => {
       console.log("❌ Dispositivo desconectado");
-      // Marcar offline a los que estén online (simple)
       for (const [, dev] of Object.entries(devices)) {
         if (dev.online) dev.online = false;
       }
@@ -142,13 +194,8 @@ wss.on("connection", (ws, req, type) => {
     console.log("🖥️ Panel conectado");
     panels.add(ws);
 
-    // Enviar estado actual
     ws.send(JSON.stringify({ type: "updateDevices", devices }));
-
-    // Enviar la última actualización publicada (si existe)
-    if (latestUpdate) {
-      ws.send(JSON.stringify({ type: "newUpdate", ...latestUpdate }));
-    }
+    if (latestUpdate) ws.send(JSON.stringify({ type: "newUpdate", ...latestUpdate }));
 
     ws.on("close", () => panels.delete(ws));
     ws.on("error", (err) => console.error("🚨 Error WS panel:", err.message));
@@ -172,7 +219,7 @@ setInterval(() => {
   fetch("https://blinkpro-master.onrender.com/ping")
     .then((res) => console.log("💓 KeepAlive:", res.status))
     .catch((err) => console.log("⚠️ Fallo KeepAlive:", err.message));
-}, 240000); // 4 min
+}, 240000);
 
 // =============================
 // 🚀 Arrancar
