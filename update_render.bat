@@ -1,6 +1,6 @@
 @echo off
 setlocal EnableDelayedExpansion
-title 🚀 BlinkPro Master - Auto Sync + Backup to Render
+title 🚀 BlinkPro Master - Auto Sync + Full Deploy (con /public)
 color 0B
 chcp 65001 >nul
 
@@ -9,7 +9,7 @@ echo     🚀 BlinkPro Master - Auto Sync + Backup
 echo ============================================
 echo.
 
-REM === Ir al directorio del script ===
+REM === Ir al directorio raíz del proyecto ===
 cd /d "%~dp0"
 
 REM === Verificar conexión a Internet ===
@@ -49,7 +49,7 @@ if exist "%BACKUP_FILE%" (
 )
 echo.
 
-REM === Limpiar bloqueos previos ===
+REM === Limpiar bloqueos previos de Git ===
 if exist ".git\index.lock" (
     del /f /q ".git\index.lock"
     echo 🧹 Eliminado archivo de bloqueo index.lock.
@@ -61,29 +61,46 @@ if exist ".git\rebase-merge" (
 )
 echo.
 
-REM === Verificar rama actual ===
+REM === Detectar rama actual ===
 for /f "tokens=*" %%b in ('git branch --show-current') do set "BRANCH=%%b"
 if "%BRANCH%"=="" set "BRANCH=main"
 echo 🧭 Rama actual: %BRANCH%
 echo.
 
-REM === Preparar commit ===
+REM === Crear/actualizar .gitignore ===
+(
+echo node_modules/
+echo backups/
+echo *.log
+echo .env
+)>".gitignore"
+
+echo ✅ .gitignore actualizado (se incluirá la carpeta /public completa).
+echo.
+
+REM === Incluir carpeta /public en Git (por si estaba ignorada antes) ===
+git add -f public >nul 2>&1
+echo 📁 Forzando inclusión de /public en seguimiento.
+echo.
+
+REM === Preparar cambios para commit ===
 echo 🔄 Preparando cambios para commit...
 git add -A >nul 2>&1
 git restore --staged node_modules >nul 2>&1
-echo ✅ Archivos listos para commit.
+echo ✅ Archivos preparados.
 
 git diff --cached --quiet
 if errorlevel 1 (
-    git commit -m "📦 Actualización automática del servidor BlinkPro Master" >nul 2>&1
-    echo ✅ Cambios confirmados correctamente.
+    set "MSG=📦 Actualización BlinkPro Master (%DATE% %TIME%)"
+    git commit -m "!MSG!" >nul 2>&1
+    echo ✅ Commit creado: "!MSG!"
 ) else (
-    echo ⚙️ No hay cambios nuevos para guardar.
+    echo ⚙️ No hay cambios nuevos que guardar.
 )
 echo.
 
-REM === Actualizar desde remoto antes de subir ===
-echo 📥 Actualizando desde GitHub...
+REM === Actualizar desde GitHub ===
+echo 📥 Actualizando rama %BRANCH% desde remoto...
 git fetch origin %BRANCH% >nul 2>&1
 git pull --rebase origin %BRANCH%
 if errorlevel 1 (
@@ -97,32 +114,43 @@ echo ✅ Rebase limpio completado.
 echo.
 
 REM === Subir cambios ===
-echo 🚀 Subiendo commits al repositorio remoto...
+echo 🚀 Subiendo cambios al repositorio remoto...
 git push origin %BRANCH%
 if errorlevel 1 (
     echo ❌ Error al subir los cambios.
+    echo Verifica tus credenciales o conexión a GitHub.
     pause
     exit /b
 )
-echo ✅ Cambios subidos correctamente.
+echo ✅ Cambios subidos correctamente a GitHub.
 echo.
 
-REM === Limpiar respaldos antiguos (solo los 5 más recientes) ===
+REM === Limpiar respaldos antiguos (mantener 5 últimos) ===
 echo 🧹 Limpiando respaldos antiguos...
 for /f "skip=5 delims=" %%F in ('dir "%BACKUP_DIR%\blinkpro_backup_*.zip" /b /o-d') do del /q "%BACKUP_DIR%\%%F" >nul 2>&1
 echo ✅ Limpieza completada.
 echo.
 
+REM === Render.com check ===
+if exist "render.yaml" (
+    echo 🧰 Archivo render.yaml detectado — Render redeployará automáticamente.
+) else (
+    echo ⚠️ No se encontró render.yaml — verifica el panel de Render.
+)
+echo.
+
 REM === Confirmación final ===
 echo ============================================
 echo 🎉 ¡Actualización completada con éxito!
-echo 🌐 Render redeployará automáticamente.
+echo 🌐 Render redeployará los cambios automáticamente.
 echo ============================================
 echo.
 echo 🔗 Panel web: https://blinkpro-master.onrender.com
 echo 📦 Repo: https://github.com/OshpaGame/blinkpro-master
-echo 📂 Backup: %BACKUP_FILE%
+echo 💾 Backup generado: %BACKUP_FILE%
+echo 📂 Carpeta incluida: /public (HTML, scripts y APKs)
 echo.
 
 pause
 exit /b
+

@@ -48,11 +48,6 @@
       .card-title { font-size: 0.9rem; color: #94a3b8; }
       .card-value { font-size: 1.6rem; font-weight: bold; color: #22d3ee; text-shadow: 0 0 8px #22d3ee; }
 
-      @keyframes pulseAmber { 0%, 100% { opacity: 0.8; text-shadow: 0 0 8px #f59e0b; } 50% { opacity: 1; text-shadow: 0 0 20px #fbbf24; } }
-      @keyframes pulseRed { 0%, 100% { opacity: 0.8; text-shadow: 0 0 8px #ef4444; } 50% { opacity: 1; text-shadow: 0 0 20px #f87171; } }
-      .pulse-amber { animation: pulseAmber 2s infinite ease-in-out; }
-      .pulse-red { animation: pulseRed 1.8s infinite ease-in-out; }
-
       table {
         width: 100%;
         border-collapse: collapse;
@@ -64,24 +59,67 @@
       th, td { padding: 14px; text-align: center; }
       th { background: rgba(38, 50, 56, 0.9); color: #00bcd4; font-weight: 600; }
       tr:hover { background: rgba(56, 70, 90, 0.4); transform: scale(1.01); }
-      .status { font-size: 20px; font-weight: bold; }
       .online { color: #4caf50; animation: blinkGreen 2s infinite; }
       .offline { color: #f44336; animation: blinkRed 2s infinite; }
-      @keyframes blinkGreen { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
-      @keyframes blinkRed { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
+      @keyframes blinkGreen { 0%,100%{opacity:.7;}50%{opacity:1;} }
+      @keyframes blinkRed { 0%,100%{opacity:.7;}50%{opacity:1;} }
 
-      .progress-bar { width: 100%; height: 10px; border-radius: 5px; background: rgba(80, 90, 110, 0.5); overflow: hidden; margin-top: 6px; }
-      .progress-fill { height: 100%; border-radius: 5px; background: linear-gradient(90deg, #10b981, #22d3ee); transition: width 0.6s ease; }
-
-      .ota { max-width: 1000px; margin: 30px auto; background: rgba(27,31,39,.9); border-radius: 12px; padding: 16px; box-shadow: 0 8px 25px rgba(0,0,0,.3); text-align:center; }
-      .ota h2 { text-align:center; color:#38bdf8; margin: 0 0 10px; }
+      .ota {
+        max-width: 1000px; margin: 30px auto;
+        background: rgba(27,31,39,.9); border-radius: 12px;
+        padding: 16px; box-shadow: 0 8px 25px rgba(0,0,0,.3); text-align:center;
+      }
+      .ota h2 { color:#38bdf8; margin: 0 0 10px; }
       .ota form { display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
-      .ota input { padding:10px; border-radius:8px; border:1px solid #38bdf8; background:#0f172a; color:#e2e8f0; }
-      .ota button { padding:10px 18px; border:none; border-radius:8px; background:#38bdf8; color:#0f172a; cursor:pointer; font-weight:600; }
-      .ota .hint { text-align:center; color:#94a3b8; margin-top:10px; font-size:.9rem; }
-      .badge { display:inline-block; padding:2px 8px; border-radius:999px; background:#0ea5e9; color:#001018; font-weight:700; margin-left:6px;}
-      .filter-btn { margin-top:10px; padding:8px 16px; border:none; border-radius:8px; background:#10b981; color:#001018; font-weight:600; cursor:pointer; }
-      .filter-btn.off { background:#334155; color:#94a3b8; }
+      .ota input {
+        padding:10px; border-radius:8px;
+        border:1px solid #38bdf8; background:#0f172a; color:#e2e8f0;
+      }
+      .ota button {
+        padding:10px 18px; border:none; border-radius:8px;
+        background:#38bdf8; color:#0f172a; cursor:pointer; font-weight:600;
+      }
+      .ota .hint { color:#94a3b8; margin-top:10px; font-size:.9rem; }
+      .badge { display:inline-block; padding:2px 8px; border-radius:999px;
+        background:#0ea5e9; color:#001018; font-weight:700; margin-left:6px;}
+
+      /* 🔔 Toasts */
+      #toast-container {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        z-index: 9999;
+      }
+      .toast {
+        background: rgba(56,189,248,0.15);
+        border-left: 5px solid #38bdf8;
+        padding: 14px 18px;
+        border-radius: 8px;
+        color: #e2e8f0;
+        font-size: 0.95rem;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        min-width: 260px;
+        animation: fadeIn 0.3s ease;
+      }
+      .toast.success { border-color: #10b981; }
+      .toast.error { border-color: #ef4444; }
+      .toast .progress {
+        height: 6px;
+        border-radius: 3px;
+        background: rgba(255,255,255,0.15);
+        margin-top: 8px;
+        overflow: hidden;
+      }
+      .toast .progress-inner {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg,#10b981,#22d3ee);
+        transition: width 0.2s linear;
+      }
+      @keyframes fadeIn { from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);} }
     </style>
   </head>
 
@@ -111,6 +149,8 @@
       <tbody></tbody>
     </table>
 
+    <div id="toast-container"></div>
+
     <script>
       const ws = new WebSocket("wss://blinkpro-master.onrender.com/ws?key=panel");
       let devicesData = {}, latestVersion = null;
@@ -121,21 +161,25 @@
           devicesData = msg.devices || {};
           renderDevices();
         }
-        if (msg.type === "newUpdate") setLatestBadge(msg);
+        if (msg.type === "newUpdate") {
+          setLatestBadge(msg);
+          showToast(`Nueva versión publicada: v${msg.version}`, "success");
+        }
       };
 
       function renderDevices() {
         const tbody = document.querySelector("#devicesTable tbody");
         tbody.innerHTML = "";
         Object.values(devicesData).forEach((d) => {
-          const row = `<tr>
-            <td class="${d.online ? "online" : "offline"}">${d.online ? "🟢" : "🔴"}</td>
-            <td>${d.model}</td>
-            <td>${d.sdk}</td>
-            <td>${d.version}</td>
-            <td>${d.lastSeen}</td>
-          </tr>`;
-          tbody.insertAdjacentHTML("beforeend", row);
+          tbody.insertAdjacentHTML("beforeend",
+            `<tr>
+              <td class="${d.online ? "online" : "offline"}">${d.online ? "🟢" : "🔴"}</td>
+              <td>${d.model}</td>
+              <td>${d.sdk}</td>
+              <td>${d.version}</td>
+              <td>${d.lastSeen}</td>
+            </tr>`
+          );
         });
         document.getElementById("onlineValue").textContent = Object.values(devicesData).filter(d=>d.online).length;
         document.getElementById("totalValue").textContent = Object.keys(devicesData).length;
@@ -150,19 +194,68 @@
         }
       }
 
-      document.getElementById("uploadForm").addEventListener("submit", async (e) => {
+      function showToast(message, type="info", withProgress=false) {
+        const container = document.getElementById("toast-container");
+        const toast = document.createElement("div");
+        toast.className = `toast ${type}`;
+        toast.innerHTML = `<div>${message}</div>`;
+        if (withProgress) {
+          const bar = document.createElement("div");
+          bar.className = "progress";
+          bar.innerHTML = `<div class="progress-inner"></div>`;
+          toast.appendChild(bar);
+        }
+        container.appendChild(toast);
+        return toast;
+      }
+
+      function updateProgressToast(toast, percent) {
+        const inner = toast.querySelector(".progress-inner");
+        if (inner) inner.style.width = percent + "%";
+      }
+
+      document.getElementById("uploadForm").addEventListener("submit", (e) => {
         e.preventDefault();
         const version = document.getElementById("versionInput").value.trim();
         const file = document.getElementById("apkInput").files[0];
-        if (!version || !file) return alert("Completa versión y selecciona un archivo .apk");
+        if (!version || !file) return showToast("Completa versión y selecciona un archivo .apk", "error");
 
         const fd = new FormData();
         fd.append("apk", file);
         fd.append("version", version);
 
-        const up = await fetch("/api/upload", { method: "POST", body: fd });
-        const msg = await up.text();
-        alert(msg);
+        const toast = showToast("Subiendo actualización... 0%", "info", true);
+
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/api/upload", true);
+
+        xhr.upload.onprogress = (evt) => {
+          if (evt.lengthComputable) {
+            const percent = Math.round((evt.loaded / evt.total) * 100);
+            updateProgressToast(toast, percent);
+            toast.firstChild.textContent = `Subiendo actualización... ${percent}%`;
+          }
+        };
+
+        xhr.onload = () => {
+          if (xhr.status === 200) {
+            toast.firstChild.textContent = "✅ Subida completada y publicada correctamente";
+            toast.classList.add("success");
+            updateProgressToast(toast, 100);
+          } else {
+            toast.firstChild.textContent = "❌ Error al subir APK: " + xhr.responseText;
+            toast.classList.add("error");
+          }
+          setTimeout(()=>toast.remove(),4000);
+        };
+
+        xhr.onerror = () => {
+          toast.firstChild.textContent = "🚨 Error de conexión";
+          toast.classList.add("error");
+          setTimeout(()=>toast.remove(),4000);
+        };
+
+        xhr.send(fd);
       });
 
       fetch("/api/update").then(r=>r.json()).then(setLatestBadge);
