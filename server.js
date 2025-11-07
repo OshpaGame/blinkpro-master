@@ -59,7 +59,10 @@ app.post("/api/upload", upload.single("apk"), (req, res) => {
       return res.status(400).send("Faltan versión o archivo APK");
     }
 
-    const fileUrl = `/apk/${req.file.filename}`;
+    // 🌐 Crear URL absoluta para que Android pueda descargarla
+    const baseUrl = process.env.BASE_URL || "https://blinkpro-master.onrender.com";
+    const fileUrl = `${baseUrl}/apk/${req.file.filename}`;
+
     latestUpdate = {
       version,
       url: fileUrl,
@@ -67,8 +70,9 @@ app.post("/api/upload", upload.single("apk"), (req, res) => {
     };
 
     console.log(`📦 Nueva APK subida: ${req.file.filename} (v${version})`);
+    console.log(`🔗 URL pública: ${fileUrl}`);
 
-    // Notificar a todos los clientes WS
+    // 🔔 Notificar a todos los clientes WS (paneles + apps)
     const payload = JSON.stringify({ type: "newUpdate", ...latestUpdate });
     wss.clients.forEach((ws) => {
       if (ws.readyState === 1) ws.send(payload);
@@ -80,6 +84,7 @@ app.post("/api/upload", upload.single("apk"), (req, res) => {
     res.status(500).send("Error interno al subir APK");
   }
 });
+
 
 // =============================
 // 📦 Ruta para descargar APKs
